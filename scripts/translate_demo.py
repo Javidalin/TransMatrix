@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from transmatrix.extraction.pdf_extractor import PDFExtractor
 from transmatrix.extraction.table_extractor import TableExtractor
 from transmatrix.translation.document_translator import translate_document_simple
+from transmatrix.reconstruction.pdf_rebuilder import rebuild_pdf_simple
 
 
 def main():
@@ -31,20 +32,20 @@ def main():
     print(f"Traducción: {source_lang} → {target_lang}")
     print("=" * 50)
 
-    # Extraer documento
-    print("\n[1/3] Extrayendo contenido...")
+    # Paso 1: Extraer documento
+    print("\n[1/4] Extrayendo contenido...")
     extractor = PDFExtractor()
     document = extractor.extract(pdf_path)
     print(f"      → {document.total_text_blocks} bloques de texto")
 
-    # Extraer tablas
-    print("\n[2/3] Extrayendo tablas...")
+    # Paso 2: Extraer tablas
+    print("\n[2/4] Extrayendo tablas...")
     table_extractor = TableExtractor()
     document = table_extractor.enrich_document(document, pdf_path)
     print(f"      → {document.total_tables} tablas")
 
-    # Traducir
-    print("\n[3/3] Traduciendo...")
+    # Paso 3: Traducir
+    print("\n[3/4] Traduciendo...")
     print("      (Primera ejecución descarga el modelo ~1.2GB)")
     document = translate_document_simple(
         document,
@@ -53,25 +54,44 @@ def main():
         verbose=True,
     )
 
-    # Guardar resultado
+    # Paso 4: Reconstruir PDF
+    print("\n[4/4] Generando PDF traducido...")
+    output_pdf = Path(f"{pdf_path.stem}_{source_lang}_to_{target_lang}.pdf")
+    rebuild_pdf_simple(pdf_path, document, output_pdf, verbose=True)
+    print(f"      → {output_pdf}")
+
+    # Guardar también el JSON
     output_json = Path(f"{pdf_path.stem}_{source_lang}_to_{target_lang}.json")
     document.save(output_json)
-    print(f"\n✓ Guardado en: {output_json}")
+    print(f"      → {output_json}")
+
+    # Resumen
+    print("\n" + "=" * 50)
+    print("✓ COMPLETADO")
+    print("=" * 50)
+    print(f"  PDF traducido: {output_pdf}")
+    print(f"  Datos JSON:    {output_json}")
 
     # Mostrar muestra
-    print("\n" + "=" * 50)
+    print("\n" + "-" * 50)
     print("MUESTRA DE TRADUCCIÓN:")
-    print("=" * 50)
+    print("-" * 50)
 
     if document.pages:
         page = document.pages[0]
-        for block in page.text_blocks[:3]:
+        count = 0
+        for block in page.text_blocks:
+            if count >= 3:
+                break
             for line in block.lines:
-                original = line.text
-                translated = line.translated_text
-                if original != translated:
-                    print(f"\n  Original:  {original[:60]}")
-                    print(f"  Traducido: {translated[:60]}")
+                original = line.text.strip()
+                translated = line.translated_text.strip()
+                if original and translated and original != translated:
+                    print(f"\n  ES: {original[:60]}")
+                    print(f"  EN: {translated[:60]}")
+                    count += 1
+                    if count >= 3:
+                        break
 
 
 if __name__ == "__main__":

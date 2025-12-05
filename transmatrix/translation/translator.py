@@ -57,7 +57,7 @@ class NLLBTranslator(Translator):
     def __init__(
         self,
         config: TranslationConfig,
-        model_name: str = "facebook/nllb-200-distilled-600M",
+        model_name: str = "facebook/nllb-200-3.3B",
         device: Optional[str] = None,
     ):
         self.config = config
